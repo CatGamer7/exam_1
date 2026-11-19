@@ -34,7 +34,7 @@ export default function FilterSidebar({ filters, onChange }: Props) {
             mode="multiple" 
             style={{ width: '100%' }} 
             placeholder="Все регионы" 
-            options={(meta?.regions ?? []).map(r => ({ label: r, value: r }))}
+            options={(meta?.regions ?? []).map((r: string) => ({ label: r, value: r }))}
             value={filters.regions} 
             onChange={(v) => update('regions', v)} 
             allowClear 
@@ -45,7 +45,7 @@ export default function FilterSidebar({ filters, onChange }: Props) {
             mode="multiple" 
             style={{ width: '100%' }} 
             placeholder="Все категории"
-            options={(meta?.categories ?? []).map(c => ({ label: c, value: c }))}
+            options={(meta?.categories ?? []).map((c: string) => ({ label: c, value: c }))}
             value={filters.categories} 
             onChange={(v) => update('categories', v)} 
             allowClear 
@@ -56,7 +56,7 @@ export default function FilterSidebar({ filters, onChange }: Props) {
             mode="multiple" 
             style={{ width: '100%' }} 
             placeholder="Все клиники" 
-            options={(meta?.clinics ?? []).map(c => ({ label: c, value: c }))}
+            options={(meta?.clinics ?? []).map((c: string) => ({ label: c, value: c }))}
             value={filters.clinics} 
             onChange={(v) => update('clinics', v)} 
             allowClear 

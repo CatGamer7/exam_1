@@ -154,7 +154,7 @@ export default function DashboardGrid({ filters }: { filters: Filters }) {
                     ...baseLayout, 
                     xaxis: { title: axisTitle('Количество операций, шт.') },
                     // ticklabelstandoff pushes category labels away from the bar start line
-                    yaxis: { title: axisTitle('Категория'), automargin: true, ticklabelstandoff: 12 },
+                    yaxis: { title: axisTitle('Категория'), automargin: true, ticklabelstandoff: 12 } as any,
                     showlegend: false
                   }} 
                   config={{ responsive: true }} useResizeHandler={true} 
@@ -217,7 +217,7 @@ export default function DashboardGrid({ filters }: { filters: Filters }) {
             <PlotWrapper isLoading={v11.isFetching && !v11.data}>
               {v11.data && (
                 <Plot 
-                  data={v11.data.clinics.map((clinic, i) => ({
+                  data={v11.data.clinics.map((clinic: string, i: number) => ({
                     y: v11.data.categories, x: v11.data.avg_check_matrix[i], 
                     name: clinic, type: 'bar', orientation: 'h' 
                   }))} 
@@ -225,7 +225,7 @@ export default function DashboardGrid({ filters }: { filters: Filters }) {
                     ...baseLayout, 
                     barmode: 'group', 
                     xaxis: { title: axisTitle('Средний чек, руб.') },
-                    yaxis: { title: axisTitle('Категория'), automargin: true, ticklabelstandoff: 15 },
+                    yaxis: { title: axisTitle('Категория'), automargin: true, ticklabelstandoff: 15 } as any,
                     showlegend: v11.data.clinics.length > 1
                   }} 
                   config={{ responsive: true }} useResizeHandler={true} 
@@ -241,7 +241,7 @@ export default function DashboardGrid({ filters }: { filters: Filters }) {
       <Card title="Детализация операций">
         <Table 
           dataSource={details.data?.rows || []} 
-          rowKey={(record: any, index: number) => index}
+          rowKey={(record: any, index?: number) => index ?? 0}
           columns={[
             { title: 'Дата', dataIndex: 'appointment_date', render: (t: string) => t ? String(t).replace('T', ' ').substring(0, 19) : '' },
             { title: 'Клиника', dataIndex: 'clinic_name' },
