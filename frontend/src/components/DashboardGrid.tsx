@@ -20,12 +20,12 @@ const axisTitle = (text: string, standoff = 10) => ({ text, standoff })
 
 // --- CENTRALIZED TITLE DICTIONARIES ---
 const CHART_TITLES = {
-  trends: "Динамика выручки по месяцам (default new)",
-  structure: "Структура выручки по категориям (default new)",
-  volume: "Объём продаж по категориям (default new)",
-  heatmap: "Тепловая карта: Выручка по дням и часам (default new)",
-  discounts: "Распределение скидок (default new)",
-  v11: "Вариант 11: Средний чек по категориям в разрезе клиник (default new)",
+  trends: "Пики выручки в январе и октябре",
+  structure: "Наибольшая выручка по детской стоматологии",
+  volume: "Чаще всего выполняется терапия",
+  heatmap: "Выручка примерно равна в каждый из дней недели",
+  discounts: "Чаще всего назначается скидка в 10%",
+  v11: "Детская стоматология ведёт по среднему чеку в детской клинике",
 } as const
 
 const GENERIC_TITLES = {
