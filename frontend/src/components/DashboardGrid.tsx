@@ -114,10 +114,22 @@ export default function DashboardGrid({ filters }: { filters: Filters }) {
                 <Plot 
                   data={[{ 
                     values: structure.data.revenue, labels: structure.data.categories, 
-                    type: 'pie', hole: 0.4, textinfo: 'label+percent',
+                    type: 'pie', hole: 0.4,
+                    textinfo: 'none',
+                    hovertemplate: '%{label}<br>%{value:,.0f} руб.<br>%{percent}<extra></extra>',
                     marker: { colors: ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b'] }
                   }]} 
-                  layout={{ ...baseLayout, margin: { t: 10, b: 10, l: 10, r: 10 }, showlegend: false }} 
+                  layout={{ 
+                    ...baseLayout, 
+                    margin: { 
+                      t: 10, 
+                      b: 10, 
+                      l: 10, 
+                      r: structure.data.categories.length > 1 ? 160 : 10 
+                    },
+                    showlegend: structure.data.categories.length > 1,
+                    legend: { orientation: 'v', x: 1.0, xanchor: 'left', y: 0.5, yanchor: 'middle', font: { size: 11 } }
+                  }} 
                   config={{ responsive: true }} useResizeHandler={true} 
                   style={{ width: '100%', height: '100%' }} 
                 />
