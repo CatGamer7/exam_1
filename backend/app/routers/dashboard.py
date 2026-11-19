@@ -10,7 +10,7 @@ router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 def get_filters(
     date_from: Optional[date] = None, date_to: Optional[date] = None,
     regions: Optional[str] = Query(None), categories: Optional[str] = Query(None), 
-    clinic_ids: Optional[str] = Query(None)
+    clinic_ids: Optional[str] = Query(None), clinic_regions: Optional[str] = Query(None)
 ) -> DashboardFilters:
     def parse_list(val: Optional[str], type_func=str) -> Optional[list]:
         if not val: return None
@@ -19,7 +19,8 @@ def get_filters(
     return DashboardFilters(
         date_from=date_from, date_to=date_to,
         regions=parse_list(regions), categories=parse_list(categories),
-        clinic_ids=parse_list(clinic_ids, int)
+        clinic_ids=parse_list(clinic_ids, int),
+        clinic_regions=parse_list(clinic_regions)
     )
 
 def apply_filters(df: pd.DataFrame, f: DashboardFilters) -> pd.DataFrame:
@@ -28,6 +29,7 @@ def apply_filters(df: pd.DataFrame, f: DashboardFilters) -> pd.DataFrame:
     if f.regions: df = df[df['patient_region'].isin(f.regions)]
     if f.categories: df = df[df['category'].isin(f.categories)]
     if f.clinic_ids: df = df[df['clinic_id'].isin(f.clinic_ids)]
+    if f.clinic_regions: df = df[df['clinic_region'].isin(f.clinic_regions)]
     return df
 
 @router.get("/kpis", response_model=KPIResponse)
@@ -90,7 +92,26 @@ async def get_variant11(f: DashboardFilters = Depends(get_filters)):
 async def get_details(f: DashboardFilters = Depends(get_filters)):
     df = apply_filters(await get_df(), f)
     cols = ['appointment_date', 'clinic_name', 'category', 'service_name', 'quantity', 'revenue', 'patient_region']
+    
+    # Return ALL filtered rows for client-side pagination
     return DetailTableResponse(
         total_count=len(df),
-        rows=df[cols].head(100).to_dict(orient='records')
+        rows=df[cols].to_dict(orient='records')
     )
+
+@router.get("/meta")
+async def get_meta():
+    df = await get_df()
+    regions = sorted(df['patient_region'].dropna().unique().tolist())
+    clinic_regions = sorted(df['clinic_region'].dropna().unique().tolist())
+    categories = sorted(df['category'].dropna().unique().tolist())
+    clinics = [
+        {"id": int(cid), "name": name}
+        for cid, name in df[['clinic_id', 'clinic_name']].dropna().drop_duplicates().values
+    ]
+    return {
+        "regions": regions, 
+        "clinic_regions": clinic_regions,
+        "categories": categories, 
+        "clinics": clinics
+    }

@@ -1,5 +1,6 @@
 import { Layout, DatePicker, Select, Card, Button, Space } from 'antd'
-import { Filters } from '../api'
+import { useQuery } from '@tanstack/react-query'
+import { Filters, fetchMeta } from '../api'
 import dayjs from 'dayjs'
 
 const { Sider } = Layout
@@ -9,6 +10,9 @@ interface Props { filters: Filters; onChange: (f: Filters) => void }
 
 export default function FilterSidebar({ filters, onChange }: Props) {
   const update = (key: keyof Filters, val: any) => onChange({ ...filters, [key]: val })
+  
+  // Fetch dynamic filter options from the backend
+  const { data: meta } = useQuery({ queryKey: ['meta'], queryFn: fetchMeta })
 
   return (
     <Sider width={300} style={{ background: '#fff', padding: '16px', borderRight: '1px solid #f0f0f0' }}>
@@ -26,15 +30,39 @@ export default function FilterSidebar({ filters, onChange }: Props) {
               })
             }} 
           />
+          
           <div>Регион пациента</div>
-          <Select mode="multiple" style={{ width: '100%' }} placeholder="Все регионы" 
-            options={['Дальневосточный', 'Северо-Западный', 'Северо-Кавказский', 'Уральский', 'Центральный'].map(r => ({label: r, value: r}))}
-            value={filters.regions} onChange={(v) => update('regions', v)} allowClear />
+          <Select 
+            mode="multiple" 
+            style={{ width: '100%' }} 
+            placeholder="Все регионы" 
+            options={(meta?.regions ?? []).map(r => ({ label: r, value: r }))}
+            value={filters.regions} 
+            onChange={(v) => update('regions', v)} 
+            allowClear 
+          />
           
           <div>Категория услуги</div>
-          <Select mode="multiple" style={{ width: '100%' }} placeholder="Все категории"
-            options={['Детская стоматология', 'Протезирование', 'Гигиена', 'Имплантация', 'Ортодонтия', 'Терапия'].map(c => ({label: c, value: c}))}
-            value={filters.categories} onChange={(v) => update('categories', v)} allowClear />
+          <Select 
+            mode="multiple" 
+            style={{ width: '100%' }} 
+            placeholder="Все категории"
+            options={(meta?.categories ?? []).map(c => ({ label: c, value: c }))}
+            value={filters.categories} 
+            onChange={(v) => update('categories', v)} 
+            allowClear 
+          />
+
+          <div>Регион подразделения</div>
+          <Select 
+            mode="multiple" 
+            style={{ width: '100%' }} 
+            placeholder="Все регионы клиник" 
+            options={(meta?.clinic_regions ?? []).map(r => ({ label: r, value: r }))}
+            value={filters.clinic_regions} 
+            onChange={(v) => update('clinic_regions', v)} 
+            allowClear 
+          />
 
           <Button type="dashed" block onClick={() => onChange({})}>Сбросить фильтры</Button>
         </Space>

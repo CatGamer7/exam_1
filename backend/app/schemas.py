@@ -40,3 +40,11 @@ class Variant11AvgCheckResponse(BaseModel):
 class DetailTableResponse(BaseModel):
     total_count: int
     rows: list[dict]
+
+class DashboardFilters(BaseModel):
+    date_from: Optional[date] = None
+    date_to: Optional[date] = None
+    regions: Optional[list[str]] = None
+    categories: Optional[list[str]] = None
+    clinic_ids: Optional[list[int]] = None
+    clinic_regions: Optional[list[str]] = None # <-- ADD THIS

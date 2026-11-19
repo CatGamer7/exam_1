@@ -26,5 +26,6 @@ async def get_df() -> pd.DataFrame:
         # 3. Ensure datetime columns are properly typed for filtering
         _df_cache['appointment_date'] = pd.to_datetime(_df_cache['appointment_date'])
         _df_cache['month'] = pd.to_datetime(_df_cache['month'])
+        _df_cache['patient_region'] = _df_cache['patient_region'].fillna('Не указан')
         
     return _df_cache
