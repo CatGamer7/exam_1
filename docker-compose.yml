@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: dental_bi
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d dental_bi"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: 
+      context: ./backend
+      target: prod
+    environment:
+      DATABASE_URL: postgresql+asyncpg://admin:secret@db:5432/dental_bi
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: 
+      context: ./frontend
+      target: prod
+    ports:
+      - "80:80" 
+    depends_on:
+      - backend
+
+  ingest:
+    build: ./ingest
+    environment:
+      DATABASE_URL: postgresql://admin:secret@db:5432/dental_bi
+      CSV_PATH: /data/dataset_clean.csv
+    volumes:
+      - ./data/out:/data 
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no" 
+
+volumes:
+  pgdata:
