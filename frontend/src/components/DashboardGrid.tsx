@@ -1,6 +1,9 @@
 import { Card, Row, Col, Statistic, Table, Spin } from 'antd'
 import { useQuery } from '@tanstack/react-query'
-import { Filters, fetchKPIs, fetchTrends, fetchStructure, fetchHeatmap, fetchVariant11, fetchDetails } from '../api'
+import { 
+  Filters, fetchKPIs, fetchTrends, fetchStructure, fetchHeatmap, 
+  fetchVariant11, fetchDetails, fetchCategoryVolume, fetchDiscountDistribution 
+} from '../api'
 import Plot from 'react-plotly.js'
 
 const baseLayout = { 
@@ -11,7 +14,23 @@ const baseLayout = {
 
 const PLOT_HEIGHT = 380
 
-// --- FIX 1: PlotWrapper enforces strict height to prevent layout collapse ---
+// B&W safe distinct color palette (Tableau 10 / D3 Category10)
+const BW_SAFE_COLORS = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+
+// Helper to determine if any filters are active
+const hasActiveFilters = (filters: Filters): boolean => {
+  if (filters.date_from || filters.date_to) return true
+  if (filters.regions && filters.regions.length > 0) return true
+  if (filters.categories && filters.categories.length > 0) return true
+  if (filters.clinics && filters.clinics.length > 0) return true
+  return false
+}
+
+// Helper for dual titles
+const getChartTitle = (genericName: string, filters: Filters): string => {
+  return hasActiveFilters(filters) ? genericName : `${genericName} (default)`
+}
+
 const PlotWrapper = ({ children, isLoading }: { children: React.ReactNode; isLoading: boolean }) => (
   <div style={{ height: PLOT_HEIGHT, width: '100%', position: 'relative' }}>
     {isLoading && !children && (
@@ -27,7 +46,9 @@ export default function DashboardGrid({ filters }: { filters: Filters }) {
   const kpis = useQuery({ queryKey: ['kpis', filters], queryFn: () => fetchKPIs(filters) })
   const trends = useQuery({ queryKey: ['trends', filters], queryFn: () => fetchTrends(filters) })
   const structure = useQuery({ queryKey: ['structure', filters], queryFn: () => fetchStructure(filters) })
+  const volume = useQuery({ queryKey: ['volume', filters], queryFn: () => fetchCategoryVolume(filters) })
   const heatmap = useQuery({ queryKey: ['heatmap', filters], queryFn: () => fetchHeatmap(filters) })
+  const discounts = useQuery({ queryKey: ['discounts', filters], queryFn: () => fetchDiscountDistribution(filters) })
   const v11 = useQuery({ queryKey: ['v11', filters], queryFn: () => fetchVariant11(filters) })
   const details = useQuery({ queryKey: ['details', filters], queryFn: () => fetchDetails(filters) })
 
@@ -35,7 +56,7 @@ export default function DashboardGrid({ filters }: { filters: Filters }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* 1. KPIs */}
+      {/* 1. KPIs (Task 4.1 #6) */}
       <Row gutter={[16, 16]}>
         <Col span={6}><Card><Statistic title="Выручка" value={kpis.data?.total_revenue} precision={2} suffix="₽" /></Card></Col>
         <Col span={6}><Card><Statistic title="Операций" value={kpis.data?.total_operations} /></Card></Col>
@@ -43,10 +64,10 @@ export default function DashboardGrid({ filters }: { filters: Filters }) {
         <Col span={6}><Card><Statistic title="Средний чек" value={kpis.data?.avg_check} precision={2} suffix="₽" /></Card></Col>
       </Row>
 
-      {/* 2. Dynamics & Structure */}
+      {/* 2. Dynamics (Task 4.1 #2) */}
       <Row gutter={[16, 16]}>
-        <Col span={14}>
-          <Card title="Динамика выручки по месяцам (₽)">
+        <Col span={24}>
+          <Card title={getChartTitle("Динамика выручки по месяцам", filters)}>
             <PlotWrapper isLoading={trends.isFetching && !trends.data}>
               {trends.data && (
                 <Plot 
@@ -58,7 +79,15 @@ export default function DashboardGrid({ filters }: { filters: Filters }) {
                     line: { color: '#1677ff', width: 3 },
                     marker: { color: '#1677ff', size: 8 }
                   }]} 
-                  layout={{ ...baseLayout, xaxis: { title: 'Месяц' }, yaxis: { title: 'Выручка, ₽' } }} 
+                  layout={{ 
+                    ...baseLayout, 
+                    xaxis: { title: 'Месяц' }, 
+                    yaxis: { title: 'Выручка, ₽' },
+                    annotations: [
+                      { x: trends.data.months[trends.data.min_month_idx], y: trends.data.revenue[trends.data.min_month_idx], text: 'Мин.', showarrow: true, arrowhead: 2, ax: 0, ay: -40, font: { color: 'red' } },
+                      { x: trends.data.months[trends.data.max_month_idx], y: trends.data.revenue[trends.data.max_month_idx], text: 'Макс.', showarrow: true, arrowhead: 2, ax: 0, ay: -40, font: { color: 'green' } }
+                    ]
+                  }} 
                   config={{ responsive: true }} 
                   useResizeHandler={true} 
                   style={{ width: '100%', height: '100%' }} 
@@ -67,8 +96,38 @@ export default function DashboardGrid({ filters }: { filters: Filters }) {
             </PlotWrapper>
           </Card>
         </Col>
-        <Col span={10}>
-          <Card title="Структура выручки по категориям">
+      </Row>
+
+      {/* 3. Structure: Volume & Pie (Task 4.1 #1 & #3) */}
+      <Row gutter={[16, 16]}>
+        <Col span={12}>
+          <Card title={getChartTitle("Объём продаж (кол-во операций) по категориям", filters)}>
+            <PlotWrapper isLoading={volume.isFetching && !volume.data}>
+              {volume.data && (
+                <Plot 
+                  data={[{ 
+                    x: volume.data.volume, 
+                    y: volume.data.categories, 
+                    type: 'bar', 
+                    orientation: 'h',
+                    marker: { color: '#1677ff' }
+                  }]} 
+                  layout={{ 
+                    ...baseLayout, 
+                    xaxis: { title: 'Количество операций' },
+                    yaxis: { automargin: true },
+                    margin: { t: 30, b: 40, l: 120, r: 20 }
+                  }} 
+                  config={{ responsive: true }} 
+                  useResizeHandler={true} 
+                  style={{ width: '100%', height: '100%' }} 
+                />
+              )}
+            </PlotWrapper>
+          </Card>
+        </Col>
+        <Col span={12}>
+          <Card title={getChartTitle("Структура выручки по категориям", filters)}>
             <PlotWrapper isLoading={structure.isFetching && !structure.data}>
               {structure.data && (
                 <Plot 
@@ -78,7 +137,7 @@ export default function DashboardGrid({ filters }: { filters: Filters }) {
                     type: 'pie', 
                     hole: 0.4,
                     textinfo: 'label+percent',
-                    marker: { colors: ['#1677ff', '#4096ff', '#69b1ff', '#91caff', '#bae0ff', '#e6f4ff'] }
+                    marker: { colors: BW_SAFE_COLORS } // B&W safe colors
                   }]} 
                   layout={{ 
                     ...baseLayout, 
@@ -95,10 +154,10 @@ export default function DashboardGrid({ filters }: { filters: Filters }) {
         </Col>
       </Row>
 
-      {/* 3. Heatmap & Variant 11 */}
+      {/* 4. Activity & Discounts (Task 4.1 #4 & #5) */}
       <Row gutter={[16, 16]}>
         <Col span={12}>
-          <Card title="Тепловая карта: Выручка по дням и часам">
+          <Card title={getChartTitle("Тепловая карта: Выручка по дням и часам", filters)}>
             <PlotWrapper isLoading={heatmap.isFetching && !heatmap.data}>
               {heatmap.data && (
                 <Plot 
@@ -116,7 +175,35 @@ export default function DashboardGrid({ filters }: { filters: Filters }) {
           </Card>
         </Col>
         <Col span={12}>
-          <Card title="Вариант 11: Средний чек по категориям в разрезе клиник">
+          <Card title={getChartTitle("Распределение скидок", filters)}>
+            <PlotWrapper isLoading={discounts.isFetching && !discounts.data}>
+              {discounts.data && (
+                <Plot 
+                  data={[{ 
+                    x: discounts.data.discounts, 
+                    y: discounts.data.counts, 
+                    type: 'bar',
+                    marker: { color: '#1677ff' }
+                  }]} 
+                  layout={{ 
+                    ...baseLayout, 
+                    xaxis: { title: 'Размер скидки, %', dtick: 5 },
+                    yaxis: { title: 'Частота' }
+                  }} 
+                  config={{ responsive: true }} 
+                  useResizeHandler={true} 
+                  style={{ width: '100%', height: '100%' }} 
+                />
+              )}
+            </PlotWrapper>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 5. Variant 11 (Individual Task) */}
+      <Row gutter={[16, 16]}>
+        <Col span={24}>
+          <Card title={getChartTitle("Вариант 11: Средний чек по категориям в разрезе клиник", filters)}>
             <PlotWrapper isLoading={v11.isFetching && !v11.data}>
               {v11.data && (
                 <Plot 
@@ -131,11 +218,7 @@ export default function DashboardGrid({ filters }: { filters: Filters }) {
                     ...baseLayout, 
                     barmode: 'group', 
                     xaxis: { title: 'Средний чек, ₽' },
-                    yaxis: { 
-                      title: 'Категория', 
-                      automargin: true,
-                      ticklabelstandoff: 15 // --- FIX 2: Adds space between labels and bars ---
-                    },
+                    yaxis: { title: 'Категория', automargin: true },
                     margin: { t: 30, b: 40, l: 140, r: 20 } 
                   }} 
                   config={{ responsive: true }} 
@@ -148,7 +231,7 @@ export default function DashboardGrid({ filters }: { filters: Filters }) {
         </Col>
       </Row>
 
-      {/* 4. Details Table */}
+      {/* 6. Details Table */}
       <Card title="Детализация операций">
         <Table 
           dataSource={details.data?.rows || []} 

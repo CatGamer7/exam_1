@@ -10,8 +10,6 @@ interface Props { filters: Filters; onChange: (f: Filters) => void }
 
 export default function FilterSidebar({ filters, onChange }: Props) {
   const update = (key: keyof Filters, val: any) => onChange({ ...filters, [key]: val })
-  
-  // Fetch dynamic filter options from the backend
   const { data: meta } = useQuery({ queryKey: ['meta'], queryFn: fetchMeta })
 
   return (
@@ -53,14 +51,14 @@ export default function FilterSidebar({ filters, onChange }: Props) {
             allowClear 
           />
 
-          <div>Регион подразделения</div>
+          <div>Клиника</div>
           <Select 
             mode="multiple" 
             style={{ width: '100%' }} 
-            placeholder="Все регионы клиник" 
-            options={(meta?.clinic_regions ?? []).map(r => ({ label: r, value: r }))}
-            value={filters.clinic_regions} 
-            onChange={(v) => update('clinic_regions', v)} 
+            placeholder="Все клиники" 
+            options={(meta?.clinics ?? []).map(c => ({ label: c, value: c }))}
+            value={filters.clinics} 
+            onChange={(v) => update('clinics', v)} 
             allowClear 
           />
 

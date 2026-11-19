@@ -8,19 +8,22 @@ import pandas as pd
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 def get_filters(
-    date_from: Optional[date] = None, date_to: Optional[date] = None,
-    regions: Optional[str] = Query(None), categories: Optional[str] = Query(None), 
-    clinic_ids: Optional[str] = Query(None), clinic_regions: Optional[str] = Query(None)
+    date_from: Optional[date] = None, 
+    date_to: Optional[date] = None,
+    regions: Optional[str] = Query(None), 
+    categories: Optional[str] = Query(None), 
+    clinics: Optional[str] = Query(None)
 ) -> DashboardFilters:
     def parse_list(val: Optional[str], type_func=str) -> Optional[list]:
         if not val: return None
         return [type_func(v.strip()) for v in val.split(",") if v.strip()]
         
     return DashboardFilters(
-        date_from=date_from, date_to=date_to,
-        regions=parse_list(regions), categories=parse_list(categories),
-        clinic_ids=parse_list(clinic_ids, int),
-        clinic_regions=parse_list(clinic_regions)
+        date_from=date_from, 
+        date_to=date_to,
+        regions=parse_list(regions), 
+        categories=parse_list(categories),
+        clinics=parse_list(clinics)
     )
 
 def apply_filters(df: pd.DataFrame, f: DashboardFilters) -> pd.DataFrame:
@@ -28,8 +31,7 @@ def apply_filters(df: pd.DataFrame, f: DashboardFilters) -> pd.DataFrame:
     if f.date_to: df = df[df['appointment_date'] <= pd.to_datetime(f.date_to)]
     if f.regions: df = df[df['patient_region'].isin(f.regions)]
     if f.categories: df = df[df['category'].isin(f.categories)]
-    if f.clinic_ids: df = df[df['clinic_id'].isin(f.clinic_ids)]
-    if f.clinic_regions: df = df[df['clinic_region'].isin(f.clinic_regions)]
+    if f.clinics: df = df[df['clinic_name'].isin(f.clinics)]
     return df
 
 @router.get("/kpis", response_model=KPIResponse)
@@ -67,6 +69,24 @@ async def get_category_structure(f: DashboardFilters = Depends(get_filters)):
         percentages=(cat_rev / total * 100).round(2).values.tolist() if total > 0 else []
     )
 
+@router.get("/structure/volume")
+async def get_category_volume(f: DashboardFilters = Depends(get_filters)):
+    df = apply_filters(await get_df(), f)
+    cat_vol = df.groupby('category').size().sort_values(ascending=False)
+    return {
+        "categories": cat_vol.index.tolist(),
+        "volume": cat_vol.values.tolist()
+    }
+
+@router.get("/structure/discounts")
+async def get_discount_distribution(f: DashboardFilters = Depends(get_filters)):
+    df = apply_filters(await get_df(), f)
+    dist = df.groupby('discount_pct').size().sort_index()
+    return {
+        "discounts": [int(d) for d in dist.index.tolist()],
+        "counts": dist.values.tolist()
+    }
+
 @router.get("/activity/heatmap", response_model=HeatmapResponse)
 async def get_heatmap(f: DashboardFilters = Depends(get_filters)):
     df = apply_filters(await get_df(), f)
@@ -92,8 +112,6 @@ async def get_variant11(f: DashboardFilters = Depends(get_filters)):
 async def get_details(f: DashboardFilters = Depends(get_filters)):
     df = apply_filters(await get_df(), f)
     cols = ['appointment_date', 'clinic_name', 'category', 'service_name', 'quantity', 'revenue', 'patient_region']
-    
-    # Return ALL filtered rows for client-side pagination
     return DetailTableResponse(
         total_count=len(df),
         rows=df[cols].to_dict(orient='records')
@@ -103,15 +121,10 @@ async def get_details(f: DashboardFilters = Depends(get_filters)):
 async def get_meta():
     df = await get_df()
     regions = sorted(df['patient_region'].dropna().unique().tolist())
-    clinic_regions = sorted(df['clinic_region'].dropna().unique().tolist())
     categories = sorted(df['category'].dropna().unique().tolist())
-    clinics = [
-        {"id": int(cid), "name": name}
-        for cid, name in df[['clinic_id', 'clinic_name']].dropna().drop_duplicates().values
-    ]
+    clinics = sorted(df['clinic_name'].dropna().unique().tolist())
     return {
         "regions": regions, 
-        "clinic_regions": clinic_regions,
         "categories": categories, 
         "clinics": clinics
     }
